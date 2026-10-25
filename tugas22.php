@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spin Klub Bola</title>
+<style>
+  :root {
+    --bg: #12301f; --panel: rgba(18, 48, 31, .85); --line: #2f6b47;
+    --text: #f2f5ee; --muted: #9fc2aa; --accent: #ffd23f; --larang: #ff7b7b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh;
+    background: linear-gradient(rgba(8,25,15,.45), rgba(8,25,15,.45)), url('background.jpg') center / cover fixed no-repeat;
+    background-color: var(--bg); color: var(--text);
+    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    display: flex; flex-wrap: wrap; gap: 24px;
+    justify-content: center; align-items: flex-start; padding: 24px;
+  }
+  .stage { position: relative; width: min(92vw, 560px); }
+  canvas { width: 100%; height: auto; display: block; }
+  .pointer {
+    position: absolute; top: 50%; right: -6px; transform: translateY(-50%);
+    border-top: 16px solid transparent; border-bottom: 16px solid transparent;
+    border-right: 34px solid var(--accent);
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,.5));
+  }
+  #spin {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 22%; aspect-ratio: 1; border-radius: 50%;
+    border: 4px solid var(--bg); background: var(--accent); color: #12301f;
+    font: 700 clamp(14px, 3.4vw, 20px) "Trebuchet MS", sans-serif; cursor: pointer;
+  }
+  #spin:disabled { opacity: .6; cursor: default; }
+  :focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+  .side { width: min(92vw, 400px); display: flex; flex-direction: column; gap: 10px; }
+  .result {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 16px; text-align: center; min-height: 92px;
+  }
+  .result small { color: var(--muted); display: block; margin-bottom: 4px; }
+  .result strong { font-size: 1.6rem; color: var(--accent); }
+  .result .lr { color: var(--larang); font-weight: 700; margin-top: 6px; }
+  textarea {
+    width: 100%; resize: vertical;
+    background: var(--panel); color: var(--text);
+    border: 2px solid var(--line); border-radius: 10px;
+    padding: 10px; font: 14px/1.5 Consolas, monospace;
+  }
+  #daftar { height: 200px; }
+  #pemain { height: 80px; }
+  #larangan { height: 220px; }
+  select {
+    background: var(--panel); color: var(--text); border: 2px solid var(--line);
+    border-radius: 6px; padding: 4px 8px; font: inherit;
+  }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  button.sec {
+    flex: 1; padding: 10px; border-radius: 8px; cursor: pointer;
+    background: var(--panel); color: var(--text); border: 2px solid var(--line); font-weight: 600;
+  }
+  button[hidden] { display: none; }
+  label, .info, .judul { display: flex; gap: 8px; align-items: center; color: var(--text); font-size: .95rem; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  .info { justify-content: space-between; }
+  .judul { font-weight: 700; }
+  details { color: var(--text); text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  details summary { cursor: pointer; font-weight: 700; margin-bottom: 8px; }
+  details p { margin: 0 0 8px; font-size: .85rem; color: var(--muted); }
+  #filter { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  #giliran { color: var(--accent); font-weight: 700; }
+  ol { margin: 0; padding-left: 20px; color: var(--text); font-size: .9rem; max-height: 140px; overflow: auto; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+  #papan { display: flex; flex-direction: column; gap: 8px; }
+  .kartu {
+    background: var(--panel); border: 2px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; font-size: .9rem;
+  }
+  .kartu .kh { font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+  .kartu .bt { color: var(--muted); }
+  .kartu .lr { color: var(--larang); }
+  .popup {
+    position: fixed; inset: 0; background: rgba(0,0,0,.6);
+    display: flex; align-items: center; justify-content: center; z-index: 10;
+  }
+  .popup[hidden] { display: none; }
+  .kotak {
+    background: var(--bg); border: 3px solid var(--accent); border-radius: 14px;
+    padding: 28px 36px; text-align: center; max-width: 90vw; min-width: min(90vw, 340px);
+  }
+  .kotak small { color: var(--muted); display: block; }
+  .kotak strong { display: block; font-size: 2rem; color: var(--accent); margin: 10px 0 4px; }
+  #bintang { color: var(--accent); font-size: 1.3rem; letter-spacing: 2px; margin-bottom: 6px; }
+  #larang { color: var(--larang); font-weight: 700; font-size: 1.15rem; margin: 8px 0; min-height: 1.4em; }
+  .kotak.goyang { animation: goyang .5s; }
+  @keyframes goyang {
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-14px); }
+    40% { transform: translateX(14px); } 60% { transform: translateX(-10px); } 80% { transform: translateX(10px); }
+  }
+  .konfeti { position: fixed; top: -16px; width: 10px; height: 14px; z-index: 11; animation: jatuh 2.8s linear forwards; }
+  @keyframes jatuh { to { transform: translateY(110vh) rotate(720deg); } }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <canvas id="wheel" width="800" height="800" aria-label="Roda spin klub"></canvas>
+  <div class="pointer"></div>
+  <button id="spin">SPIN</button>
+</div>
+
+<div class="side">
+  <div class="result" aria-live="polite">
+    <small>Hasil</small>
+    <strong id="hasil">Tekan SPIN</strong>
+    <div class="lr" id="hasilLarang"></div>
+  </div>
+
+  <label><input type="checkbox" id="hapus"> Hapus tim dari roda setelah keluar</label>
+  <label><input type="checkbox" id="tantangan" checked> Tantangan: 1 pemain dilarang main</label>
+  <label><input type="checkbox" id="suara" checked> Suara</label>
+  <div class="info">
+    <label>Durasi:
+      <select id="durasi">
+        <option value="3">3 detik</option>
+        <option value="5" selected>5 detik</option>
+        <option value="8">8 detik</option>
+        <option value="12">12 detik</option>
+      </select>
+    </label>
+    <label>Tema:
+      <select id="tema">
+        <option value="pelangi">Pelangi</option>
+        <option value="hijau">Hijau</option>
+        <option value="biru">Biru</option>
+        <option value="merah">Merah</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="judul">Filter liga <span id="jumlah" style="margin-left:auto;font-weight:400"></span></div>
+  <div id="filter"></div>
+
+  <textarea id="daftar" aria-label="Daftar tim, satu per baris"></textarea>
+  <div class="row">
+    <button class="sec" id="update">Update roda</button>
+    <button class="sec" id="acak">Acak urutan</button>
+    <button class="sec" id="reset">Reset</button>
+  </div>
+
+  <details>
+    <summary>Daftar pemain untuk tantangan</summary>
+    <p>Format: Nama Tim: pemain1, pemain2, pemain3. Satu tim per baris. Tim yang tidak ada di daftar ini tidak kena tantangan.</p>
+    <textarea id="larangan" aria-label="Daftar pemain per tim"></textarea>
+    <div class="row" style="margin-top:8px">
+      <button class="sec" id="resetLarang">Kembalikan daftar awal</button>
+    </div>
+  </details>
+
+  <div class="judul">Pemain (satu nama per baris)</div>
+  <textarea id="pemain" aria-label="Daftar pemain" placeholder="Andi&#10;Budi&#10;Citra"></textarea>
+  <div id="giliran"></div>
+
+  <div class="row">
+    <label>Tim per pemain:
+      <select id="jatah">
+        <option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option>
+      </select>
+    </label>
+    <button class="sec" id="bagi">Bagi otomatis</button>
+    <button class="sec" id="berhenti" hidden>Berhenti</button>
+  </div>
+
+  <div class="judul">Papan pemain</div>
+  <div id="papan"></div>
+
+  <div class="row">
+    <button class="sec" id="gantiBg">Pilih foto latar</button>
+    <button class="sec" id="layar">Layar penuh</button>
+  </div>
+  <input type="file" id="foto" accept="image/*" hidden>
+
+  <div class="info"><span>Riwayat (Spasi = spin):</span></div>
+  <ol id="riwayat"></ol>
+  <div class="row">
+    <button class="sec" id="salin">Salin riwayat</button>
+    <button class="sec" id="unduh">Unduh .txt</button>
+    <button class="sec" id="hapusRiwayat">Hapus riwayat</button>
+  </div>
+</div>
+
+<div class="popup" id="popup" hidden>
+  <div class="kotak" id="kotak">
+    <small id="menangPemain"></small>
+    <strong id="menang"></strong>
+    <div id="bintang"></div>
+    <div id="larang"></div>
+    <small id="catatan" style="min-height:1.2em"></small>
+    <div class="row" style="margin-top:14px">
+      <button class="sec" id="tutup">Tutup</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFAULT_TIM = `Burnley (Inggris)
+Wolves (Inggris)
+Brighton (Inggris)
+Newcastle (Inggris)
+Man United (Inggris)
+Chelsea (Inggris)
+Liverpool (Inggris)
+Arsenal (Inggris)
+Manchester City (Inggris)
+Nantes (Prancis)
+Reims (Prancis)
+Rennes (Prancis)
+Lille (Prancis)
+Monaco (Prancis)
+Marseille (Prancis)
+PSG (Prancis)
+Getafe (Spanyol)
+Real Sociedad (Spanyol)
+Villarreal (Spanyol)
+Athletic Club (Spanyol)
+Atletico Madrid (Spanyol)
+Barcelona (Spanyol)
+Real Madrid (Spanyol)
+Torino (Italia)
+Fiorentina (Italia)
+Roma (Italia)
+Atalanta (Italia)
+Juventus (Italia)
+Napoli (Italia)
+Inter Milan (Italia)
+Mainz (Jerman)
+Freiburg (Jerman)
+Wolfsburg (Jerman)
+Eintracht Frankfurt (Jerman)
+Bayer Leverkusen (Jerman)
+Borussia Dortmund (Jerman)
+Bayern Munich (Jerman)
+Galatasaray (Turki)
+Fenerbahce (Turki)
+Al Nassr (Arab Saudi)
+Al Hilal (Arab Saudi)
+Inter Miami (MLS)
+Ajax (Belanda)
+Feyenoord (Belanda)
+PSV (Belanda)`;
+
+// Pemain untuk tantangan (boleh kamu edit di halaman, nama tim harus sama dengan di daftar tim)
+const DEFAULT_LARANGAN = `Real Madrid: Courtois, Carvajal, Militao, Rudiger, Huijsen, Alexander-Arnold, Mendy, Valverde, Tchouameni, Camavinga, Bellingham, Guler, Vinicius, Rodrygo, Mbappe
+Barcelona: Joan Garcia, Kounde, Araujo, Cubarsi, Balde, Pedri, De Jong, Gavi, Olmo, Raphinha, Lamine Yamal, Lewandowski, Ferran Torres, Rashford
+Manchester City: Donnarumma, Gvardiol, Dias, Stones, Rodri, Reijnders, Bernardo Silva, Foden, Cherki, Doku, Marmoush, Haaland
+Liverpool: Alisson, Van Dijk, Konate, Frimpong, Kerkez, Gravenberch, Mac Allister, Szoboszlai, Wirtz, Salah, Gakpo, Ekitike, Isak
+Arsenal: Raya, Saliba, Gabriel, Timber, Rice, Zubimendi, Odegaard, Eze, Saka, Martinelli, Trossard, Havertz, Gyokeres
+Man United: Lammens, Yoro, De Ligt, Maguire, Dalot, Casemiro, Mainoo, Bruno Fernandes, Cunha, Mbeumo, Amad, Sesko
+Chelsea: Sanchez, Colwill, Reece James, Cucurella, Caicedo, Enzo Fernandez, Palmer, Pedro Neto, Estevao, Garnacho, Joao Pedro
+PSG: Safonov, Marquinhos, Hakimi, Nuno Mendes, Vitinha, Joao Neves, Fabian Ruiz, Doue, Barcola, Kvaratskhelia, Dembele
+Bayern Munich: Neuer, Upamecano, Kim Min-jae, Davies, Kimmich, Goretzka, Musiala, Olise, Luis Diaz, Kane
+Inter Milan: Sommer, Acerbi, Bastoni, Dimarco, Barella, Calhanoglu, Mkhitaryan, Thuram, Lautaro Martinez
+Atletico Madrid: Oblak, Gimenez, Le Normand, Llorente, Koke, De Paul, Griezmann, Julian Alvarez, Sorloth
+Juventus: Bremer, Cambiaso, Locatelli, Conceicao, Yildiz, Openda, David, Vlahovic
+Napoli: Di Lorenzo, Buongiorno, Lobotka, Anguissa, McTominay, De Bruyne, Politano, Neres, Hojlund
+Borussia Dortmund: Kobel, Schlotterbeck, Can, Brandt, Adeyemi, Gittens, Guirassy
+Al Nassr: Cristiano Ronaldo, Joao Felix, Sadio Mane, Kingsley Coman
+Al Hilal: Bono, Koulibaly, Theo Hernandez, Milinkovic-Savic, Salem Al-Dawsari, Malcom, Darwin Nunez
+Inter Miami: Messi, Suarez, Jordi Alba, De Paul`;
+
+// Rating bintang (1-5) tiap tim. Tim yang tidak ada di sini dihitung 3 bintang.
+const RATING = {
+  'Burnley':1,'Wolves':2,'Brighton':3,'Newcastle':3,'Man United':4,'Chelsea':4,'Liverpool':5,'Arsenal':5,'Manchester City':5,
+  'Nantes':1,'Reims':2,'Rennes':2,'Lille':3,'Monaco':3,'Marseille':4,'PSG':5,
+  'Getafe':2,'Real Sociedad':3,'Villarreal':3,'Athletic Club':3,'Atletico Madrid':4,'Barcelona':5,'Real Madrid':5,
+  'Torino':2,'Fiorentina':3,'Roma':3,'Atalanta':4,'Juventus':4,'Napoli':4,'Inter Milan':5,
+  'Mainz':2,'Freiburg':3,'Wolfsburg':2,'Eintracht Frankfurt':3,'Bayer Leverkusen':4,'Borussia Dortmund':4,'Bayern Munich':5,
+  'Galatasaray':3,'Fenerbahce':3,'Al Nassr':3,'Al Hilal':3,'Inter Miami':2,'Ajax':3,'Feyenoord':3,'PSV':3
+};
+
+// Peluang hasil berubah sendiri secara acak (0.30 = 30%). Ubah angka ini kalau mau.
+const PELUANG_BERUBAH = 0.30;
+
+const $ = id => document.getElementById(id);
+const canvas = $('wheel'), ctx = canvas.getContext('2d');
+const daftarEl = $('daftar'), pemainEl = $('pemain'), hasilEl = $('hasil');
+const spinBtn = $('spin'), riwayatEl = $('riwayat');
+const TAU = 2 * Math.PI;
+
+let tim = [], sudut = 0, sedangSpin = false, giliran = 0;
+let ligaOff = new Set();
+let dataRiwayat = [];
+let papan = {};      // { namaPemain: [{tim, larang}, ...] }
+let auto = null;     // { sisa: jumlah spin yang belum jalan }
+
+// ---------- Rating ----------
+function namaTim(b) { return b.replace(/\s*\([^)]*\)\s*$/, ''); }
+function bintang(b) { return RATING[namaTim(b)] || 3; }
+function bintangTeks(r) { return '★'.repeat(r) + '☆'.repeat(5 - r); }
+
+// ---------- Tantangan: pemain dilarang ----------
+function petaLarangan() {
+  const peta = {};
+  $('larangan').value.split('\n').forEach(b => {
+    const i = b.indexOf(':');
+    if (i < 1) return;
+    const t = b.slice(0, i).trim().toLowerCase();
+    const p = b.slice(i + 1).split(',').map(s => s.trim()).filter(Boolean);
+    if (p.length) peta[t] = p;
+  });
+  return peta;
+}
+function pilihLarangan(baris) {
+  if (!$('tantangan').checked) return '';
+  const p = petaLarangan()[namaTim(baris).toLowerCase()];
+  return p ? p[Math.floor(Math.random() * p.length)] : '';
+}
+
+// ---------- Penyimpanan ----------
+function simpan() {
+  try {
+    localStorage.setItem('daftarTim', daftarEl.value);
+    localStorage.setItem('daftarPemain', pemainEl.value);
+    localStorage.setItem('daftarLarangan', $('larangan').value);
+    localStorage.setItem('temaRoda', $('tema').value);
+  } catch (e) {}
+}
+function muatTersimpan(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+
+// ---------- Suara ----------
+let audio;
+function bunyi(freq, dur, tipe, vol) {
+  if (!$('suara').checked) return;
+  try {
+    audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = tipe || 'square'; o.frequency.value = freq;
+    g.gain.value = vol || 0.04;
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + dur);
+    o.connect(g); g.connect(audio.destination);
+    o.start(); o.stop(audio.currentTime + dur);
+  } catch (e) {}
+}
+function suaraMenang() {
+  [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => bunyi(f, 0.25, 'triangle', 0.08), i * 140));
+}
+function suaraTukar() {
+  [784, 622, 466].forEach((f, i) => setTimeout(() => bunyi(f, 0.18, 'sawtooth', 0.06), i * 110));
+}
+function suaraLarang() {
+  [330, 262].forEach((f, i) => setTimeout(() => bunyi(f, 0.3, 'sawtooth', 0.07), i * 200));
+}
+
+// ---------- Konfeti ----------
+function konfeti() {
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const w = ['#ffd23f', '#3ddc84', '#4da3ff', '#ff5c7a', '#ffffff'];
+  for (let i = 0; i < 70; i++) {
+    const d = document.createElement('div');
+    d.className = 'konfeti';
+    d.style.left = Math.random() * 100 + 'vw';
+    d.style.background = w[i % w.length];
+    d.style.animationDelay = Math.random() * 0.6 + 's';
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3600);
+  }
+}
+function goyang() {
+  const k = $('kotak');
+  k.classList.remove('goyang'); void k.offsetWidth; k.classList.add('goyang');
+}
+
+// ---------- Data tim & liga ----------
+function semuaBaris() {
+  return daftarEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+}
+function ligaDari(baris) {
+  const m = baris.match(/\(([^)]+)\)\s*$/);
+  return m ? m[1] : 'Lainnya';
+}
+function daftarPemain() {
+  return pemainEl.value.split('\n').map(s => s.trim()).filter(Boolean);
+}
+function pilihLain(namaSkrg) {
+  const pool = semuaBaris().filter(b => !ligaOff.has(ligaDari(b)) && b !== namaSkrg);
+  return pool.length ? pool[Math.floor(Math.random() * pool.length)] : null;
+}
+function buatFilter() {
+  const semua = [...new Set(semuaBaris().map(ligaDari))];
+  ligaOff = new Set([...ligaOff].filter(l => semua.includes(l)));
+  const box = $('filter');
+  box.innerHTML = '';
+  semua.forEach(l => {
+    const lab = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox'; cb.checked = !ligaOff.has(l);
+    cb.onchange = () => {
+      cb.checked ? ligaOff.delete(l) : ligaOff.add(l);
+      sudut = 0; muatRoda();
+    };
+    lab.append(cb, document.createTextNode(l));
+    box.appendChild(lab);
+  });
+}
+function muatRoda() {
+  tim = semuaBaris().filter(b => !ligaOff.has(ligaDari(b)));
+  gambar();
+  $('jumlah').textContent = tim.length + ' tim di roda';
+}
+function muatDaftar() {
+  sudut = 0; simpan(); buatFilter(); muatRoda(); updateGiliran();
+}
+function updateGiliran() {
+  const p = daftarPemain();
+  $('giliran').textContent = p.length ? 'Giliran: ' + p[giliran % p.length] : '';
+}
+
+// ---------- Papan pemain ----------
+function renderPapan() {
+  const box = $('papan');
+  box.innerHTML = '';
+  const nama = Object.keys(papan);
+  if (!nama.length) return;
+  const skor = nama.map(n => papan[n].reduce((a, t) => a + bintang(t.tim), 0));
+  const maks = Math.max(...skor);
+  nama.forEach((n, i) => {
+    const d = document.createElement('div');
+    d.className = 'kartu';
+    const h = document.createElement('div');
+    h.className = 'kh';
+    const mahkota = nama.length > 1 && skor[i] === maks && maks > 0 ? '👑 ' : '';
+    h.textContent = mahkota + n + ' - total ' + skor[i] + ' ★';
+    d.appendChild(h);
+    papan[n].forEach(t => {
+      const baris = document.createElement('div');
+      baris.textContent = namaTim(t.tim) + ' ';
+      const bt = document.createElement('span');
+      bt.className = 'bt';
+      bt.textContent = bintangTeks(bintang(t.tim));
+      baris.appendChild(bt);
+      if (t.larang) {
+        const lr = document.createElement('span');
+        lr.className = 'lr';
+        lr.textContent = '  🚫 ' + t.larang;
+        baris.appendChild(lr);
+      }
+      d.appendChild(baris);
+    });
+    box.appendChild(d);
+  });
+}
+
+// ---------- Roda ----------
+const TEMA = {
+  pelangi: (i, n) => `hsl(${(i * 360 / n + 140) % 360}, 55%, ${i % 2 ? 38 : 46}%)`,
+  hijau:   (i)    => `hsl(${135 + (i % 3) * 8}, 50%, ${i % 2 ? 28 : 38}%)`,
+  biru:    (i)    => `hsl(${205 + (i % 3) * 10}, 60%, ${i % 2 ? 34 : 44}%)`,
+  merah:   (i)    => `hsl(${(i % 2 ? 8 : 42)}, 70%, ${i % 2 ? 36 : 44}%)`
+};
+function gambar() {
+  const W = canvas.width, c = W / 2, r = c - 10, n = tim.length;
+  ctx.clearRect(0, 0, W, W);
+  if (!n) {
+    ctx.fillStyle = '#fff'; ctx.font = '32px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Tidak ada tim', c, c);
+    return;
+  }
+  const irisan = TAU / n, warna = TEMA[$('tema').value];
+  ctx.save(); ctx.translate(c, c); ctx.rotate(sudut);
+  for (let i = 0; i < n; i++) {
+    ctx.beginPath(); ctx.moveTo(0, 0);
+    ctx.arc(0, 0, r, i * irisan, (i + 1) * irisan); ctx.closePath();
+    ctx.fillStyle = warna(i, n); ctx.fill();
+    ctx.strokeStyle = '#12301f'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.save();
+    ctx.rotate(i * irisan + irisan / 2);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.font = `bold ${Math.max(10, Math.min(24, 520 / n * 1.6))}px "Trebuchet MS", sans-serif`;
+    let teks = tim[i];
+    if (teks.length > 24) teks = teks.slice(0, 23) + '…';
+    ctx.fillText(teks, r - 16, 0);
+    ctx.restore();
+  }
+  ctx.restore();
+  ctx.beginPath(); ctx.arc(c, c, r, 0, TAU);
+  ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 6; ctx.stroke();
+}
+
+// ---------- Spin ----------
+function spin() {
+  if (sedangSpin || tim.length < 1) return;
+  sedangSpin = true; spinBtn.disabled = true;
+  const n = tim.length, irisan = TAU / n;
+  const target = Math.floor(Math.random() * n);
+  const tengah = target * irisan + irisan / 2;
+  const geser = (Math.random() - 0.5) * irisan * 0.7;
+  const akhir = -(tengah + geser);
+  const mulai = sudut;
+  let delta = ((akhir - mulai) % TAU + TAU) % TAU;
+  delta += (6 + Math.floor(Math.random() * 3)) * TAU;
+
+  const durasi = auto ? 2200 : Number($('durasi').value) * 1000;
+  const t0 = performance.now();
+  const ease = t => 1 - Math.pow(1 - t, 4);
+  const irisanDi = s => Math.floor((((-s) % TAU) + TAU) % TAU / irisan);
+  let terakhirIrisan = irisanDi(mulai);
+
+  function frame(now) {
+    const t = Math.min(1, (now - t0) / durasi);
+    sudut = mulai + delta * ease(t);
+    const sekarang = irisanDi(sudut);
+    if (sekarang !== terakhirIrisan) { bunyi(900, 0.04); terakhirIrisan = sekarang; }
+    gambar();
+    if (t < 1) return requestAnimationFrame(frame);
+    selesai(target);
+  }
+  requestAnimationFrame(frame);
+}
+
+function hapusDariDaftar(nama) {
+  const baris = daftarEl.value.split('\n');
+  const i = baris.findIndex(b => b.trim() === nama);
+  if (i > -1) baris.splice(i, 1);
+  daftarEl.value = baris.join('\n');
+}
+function segarkanRoda() {
+  sudut = 0; simpan(); buatFilter(); muatRoda();
+}
+
+function selesai(idx) {
+  const nama = tim[idx];
+  const p = daftarPemain();
+  const pemain = p.length ? p[giliran % p.length] : '';
+  if (p.length) giliran++;
+
+  $('menang').textContent = nama;
+  $('bintang').textContent = bintangTeks(bintang(nama));
+  $('larang').textContent = '';
+  $('menangPemain').textContent = pemain ? 'Untuk ' + pemain : 'Pemenang';
+  $('catatan').textContent = '';
+  $('popup').hidden = false;
+  if (!auto) { $('tutup').focus(); konfeti(); suaraMenang(); }
+
+  // Kadang hasil berubah sendiri ke tim lain secara acak
+  const lain = Math.random() < PELUANG_BERUBAH ? pilihLain(nama) : null;
+
+  if (lain) {
+    setTimeout(() => {
+      goyang(); suaraTukar();
+      finalisasi(lain, pemain, nama);
+    }, 1800);
+  } else {
+    finalisasi(nama, pemain, '');
+  }
+}
+
+function finalisasi(nama, pemain, asal) {
+  const larang = pilihLarangan(nama);
+
+  hasilEl.textContent = pemain ? pemain + ': ' + nama : nama;
+  $('hasilLarang').textContent = larang ? '🚫 Tidak boleh main: ' + larang : '';
+  $('menang').textContent = nama;
+  $('bintang').textContent = bintangTeks(bintang(nama));
+  $('larang').textContent = larang ? '🚫 Tidak boleh main: ' + larang : '';
+  $('catatan').textContent = asal ? 'Berubah! Tadinya ' + asal : '';
+  if (larang && !auto) setTimeout(() => { goyang(); suaraLarang(); }, asal ? 500 : 900);
+
+  dataRiwayat.unshift(
+    (pemain ? pemain + ' - ' : '') + nama + ' [' + bintang(nama) + '★]' +
+    (larang ? ' 🚫 tanpa ' + larang : '') +
+    (asal ? ' (tadinya ' + asal + ')' : '')
+  );
+  renderRiwayat();
+
+  if (pemain) {
+    (papan[pemain] = papan[pemain] || []).push({ tim: nama, larang: larang });
+    renderPapan();
+  }
+
+  if ($('hapus').checked) { hapusDariDaftar(nama); segarkanRoda(); }
+  updateGiliran();
+  sedangSpin = false; spinBtn.disabled = !!auto;
+
+  if (auto) setTimeout(() => { $('popup').hidden = true; jalankanAuto(); }, 1500);
+}
+
+function renderRiwayat() {
+  riwayatEl.innerHTML = '';
+  dataRiwayat.forEach(t => {
+    const li = document.createElement('li');
+    li.textContent = t;
+    riwayatEl.appendChild(li);
+  });
+}
+
+// ---------- Bagi otomatis ----------
+function jalankanAuto() {
+  if (!auto) return;
+  if (auto.sisa <= 0 || tim.length < 1) { akhiriAuto(); return; }
+  auto.sisa--;
+  spin();
+}
+function akhiriAuto() {
+  auto = null;
+  $('berhenti').hidden = true; $('bagi').hidden = false;
+  spinBtn.disabled = sedangSpin;
+  $('popup').hidden = true;
+}
+$('bagi').onclick = () => {
+  if (sedangSpin || auto) return;
+  const p = daftarPemain();
+  if (!p.length) { alert('Isi nama pemain dulu di kotak Pemain.'); return; }
+  const total = p.length * Number($('jatah').value);
+  if (tim.length < total) { alert('Tim di roda kurang. Butuh ' + total + ', tersedia ' + tim.length + '.'); return; }
+  $('hapus').checked = true;       // supaya tidak ada tim kembar
+  papan = {}; renderPapan();
+  dataRiwayat = []; renderRiwayat();
+  giliran = 0; updateGiliran();
+  auto = { sisa: total };
+  $('bagi').hidden = true; $('berhenti').hidden = false;
+  jalankanAuto();
+};
+$('berhenti').onclick = akhiriAuto;
+
+// ---------- Tombol ----------
+$('update').onclick = muatDaftar;
+$('acak').onclick = () => {
+  const a = semuaBaris();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  daftarEl.value = a.join('\n');
+  muatDaftar();
+};
+$('reset').onclick = () => {
+  daftarEl.value = DEFAULT_TIM;
+  ligaOff.clear(); dataRiwayat = []; renderRiwayat(); papan = {}; renderPapan(); giliran = 0;
+  hasilEl.textContent = 'Tekan SPIN'; $('hasilLarang').textContent = '';
+  muatDaftar();
+};
+$('resetLarang').onclick = () => { $('larangan').value = DEFAULT_LARANGAN; simpan(); };
+$('larangan').oninput = simpan;
+$('hapusRiwayat').onclick = () => { dataRiwayat = []; renderRiwayat(); papan = {}; renderPapan(); };
+$('salin').onclick = () => {
+  const teks = dataRiwayat.slice().reverse().join('\n');
+  if (navigator.clipboard) navigator.clipboard.writeText(teks);
+  $('salin').textContent = 'Tersalin!';
+  setTimeout(() => $('salin').textContent = 'Salin riwayat', 1500);
+};
+$('unduh').onclick = () => {
+  const blob = new Blob([dataRiwayat.slice().reverse().join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'riwayat-spin.txt'; a.click();
+};
+$('layar').onclick = () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen();
+};
+$('tema').onchange = () => { simpan(); gambar(); };
+pemainEl.oninput = () => { giliran = 0; simpan(); updateGiliran(); };
+$('tutup').onclick = () => { $('popup').hidden = true; };
+$('popup').onclick = e => { if (e.target.id === 'popup') $('popup').hidden = true; };
+
+$('gantiBg').onclick = () => $('foto').click();
+$('foto').onchange = e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  document.body.style.backgroundImage =
+    "linear-gradient(rgba(8,25,15,.45), rgba(8,25,15,.45)), url('" + URL.createObjectURL(f) + "')";
+};
+
+spinBtn.onclick = spin;
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('popup').hidden = true;
+  if (e.code === 'Space' && !['TEXTAREA', 'INPUT', 'SELECT', 'BUTTON'].includes(e.target.tagName)) {
+    e.preventDefault();
+    if ($('popup').hidden && !auto) spin();
+  }
+});
+
+// ---------- Mulai ----------
+// Naikkan angka VERSI setiap kali kamu mengubah DEFAULT_TIM di kode
+const VERSI = '2';
+if (muatTersimpan('versi') !== VERSI) {
+  try { localStorage.removeItem('daftarTim'); localStorage.setItem('versi', VERSI); } catch (e) {}
+}
+daftarEl.value = muatTersimpan('daftarTim') || DEFAULT_TIM;
+pemainEl.value = muatTersimpan('daftarPemain') || '';
+$('larangan').value = muatTersimpan('daftarLarangan') || DEFAULT_LARANGAN;
+$('tema').value = muatTersimpan('temaRoda') || 'pelangi';
+muatDaftar();
+</script>
+</body>
+</html>
